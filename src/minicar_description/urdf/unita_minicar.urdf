@@ -1,0 +1,570 @@
+<?xml version="1.0"?>
+<robot name="unita_minicar">
+  <gazebo reference="front_left_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.005</minDepth>
+    <kp>1e8</kp>
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="front_right_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.005</minDepth>
+    <kp>1e8</kp>
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="rear_left_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.005</minDepth>
+    <kp>1e8</kp>
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="rear_right_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.005</minDepth>
+    <kp>1e8</kp>
+    <material>Gazebo/Black</material>
+  </gazebo>
+  
+  <link name="base_link">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+  
+  <link name="chassis">
+    <visual>
+      <origin xyz="0.01 0 -0.0308243" rpy="0 0 1.57"/>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/chassis.stl" scale="0.012 0.0097 0.01"/>
+      </geometry>
+      <material name="body_gray">
+        <color rgba="0.65 0.65 0.65 1.0"/>
+      </material>
+    </visual>
+
+    <collision name="chassis_collision1">
+      <origin xyz="-0.015 0 0.15" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.32 0.45 0.3"/> 
+      </geometry>
+    </collision>
+    <collision name="chassis_collision2">
+      <origin xyz="0 0 0.075" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.90 0.36 0.15"/> 
+      </geometry>
+    </collision>
+
+    <inertial>
+      <mass value="1356.0"/>
+      <origin xyz="0 0 0.48" rpy="0 0 1.5708"/>
+      <inertia ixx="2581.13354740" ixy="0.0" ixz="0.0" iyy="591.30846112" iyz="0.0" izz="2681.95008628"/>
+    </inertial>
+  </link>
+
+  <joint name="chassis_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis"/>
+    <origin xyz="0 0 0.075" rpy="0 0 0"/>
+  </joint>
+
+  <link name="laser">
+    <inertial>
+      <mass value="0.114"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.0298" rpy="0 0 3.14159"/>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/lidar.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="laser_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="laser"/>
+    <origin xyz="0.4722 0 0.1128" rpy="0 0 3.14159"/>
+  </joint>
+
+  <gazebo reference="laser">
+    <sensor name="rplidar_c1" type="ray">
+      <pose>0 0 0 0 0 0</pose>
+      <always_on>true</always_on>
+      <visualize>true</visualize> 
+      <update_rate>10.0</update_rate> 
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples> 
+            <resolution>1</resolution>
+            <min_angle>-3.141592</min_angle>
+            <max_angle>3.141592</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.05</min> 
+          <max>12.0</max> 
+          <resolution>0.01</resolution> 
+          </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="scan" filename="libgazebo_ros_ray_sensor.so">
+        <ros>
+          <remapping>~/out:=/scan</remapping> 
+        </ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>laser</frame_name> 
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <link name="ultrasonic1_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic1_joint" type="fixed">
+    <parent link="chassis"/><child link="ultrasonic1_link"/>
+    <origin xyz="-0.408 0.246 0.104" rpy="0 0 2.2324"/>
+  </joint>
+
+  <link name="ultrasonic2_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic2_joint" type="fixed">
+    <parent link="chassis"/><child link="ultrasonic2_link"/>
+    <origin xyz="-0.466 0.172 0.104" rpy="0 0 2.7386"/>
+  </joint>
+
+  <link name="ultrasonic3_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic3_joint" type="fixed"> 
+    <parent link="chassis"/><child link="ultrasonic3_link"/>
+    <origin xyz="-0.488 0.099 0.104" rpy="0 0 3.0527"/>
+  </joint>
+
+  <link name="ultrasonic4_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic4_joint" type="fixed">
+    <parent link="chassis"/><child link="ultrasonic4_link"/>
+    <origin xyz="-0.488 -0.099 0.104" rpy="0 0 -3.0527"/>
+  </joint>
+
+  <link name="ultrasonic5_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic5_joint" type="fixed">
+    <parent link="chassis"/><child link="ultrasonic5_link"/>
+    <origin xyz="-0.466 -0.172 0.104" rpy="0 0 -2.7386"/>
+  </joint>
+
+  <link name="ultrasonic6_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/ultrasonic.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="ultrasonic6_joint" type="fixed">
+    <parent link="chassis"/><child link="ultrasonic6_link"/>
+    <origin xyz="-0.408 -0.246 0.104" rpy="0 0 -2.2324"/>
+  </joint>
+
+  <link name="front_camera_link">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.0018 0.05 0.0113" rpy="3.141592 0 -1.5707"/>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/camera.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1.0 0.0 0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="front_camera_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="front_camera_link"/>
+    <origin xyz="-0.25 0.0 0.678" rpy="0 0.2618 0"/> 
+  </joint>
+  
+  <link name="front_camera_link_optical">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+  
+  <joint name="front_camera_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="-1.57079 0 -1.57079"/>
+    <parent link="front_camera_link"/>
+    <child link="front_camera_link_optical"/>
+  </joint>
+
+  <gazebo reference="front_camera_link">
+    <sensor type="camera" name="front_camera">
+      <update_rate>30.0</update_rate>
+      <camera name="front_camera">
+        <horizontal_fov>1.0856</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.03</near>
+          <far>100</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+      <plugin name="front_camera_driver" filename="libgazebo_ros_camera.so">
+      <ros>
+        <remapping>image_raw:=/front_camera/image_raw</remapping>
+        <remapping>camera_info:=/front_camera/camera_info</remapping>
+      </ros>
+      <frame_name>front_camera_link_optical</frame_name>
+      <hack_baseline>0.07</hack_baseline>
+    </plugin>
+    </sensor>
+  </gazebo>
+
+  <link name="rear_camera_link">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.0018 0.05 0.0113" rpy="3.141592 0 -1.5707"/>
+      <geometry>
+        <mesh filename="package://minicar_description/meshes/camera.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1.0 0.0 0 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="rear_camera_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="rear_camera_link"/>
+    <origin xyz="-0.406 0.0 0.678" rpy="0 0.471238 3.141592"/> 
+  </joint>
+  
+  <link name="rear_camera_link_optical">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+  
+  <joint name="rear_camera_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="-1.5707 0 -1.5707"/>
+    <parent link="rear_camera_link"/>
+    <child link="rear_camera_link_optical"/>
+  </joint>
+  
+  <gazebo reference="rear_camera_link">
+  <sensor type="camera" name="rear_camera">
+    <update_rate>30.0</update_rate>
+    <camera name="rear_camera">
+      <horizontal_fov>1.3962634</horizontal_fov>
+      <image>
+        <width>640</width>
+        <height>480</height>
+        <format>R8G8B8</format>
+      </image>
+      <clip>
+        <near>0.03</near>
+        <far>100</far>
+      </clip>
+      <noise>
+        <type>gaussian</type>
+        <mean>0.0</mean>
+        <stddev>0.007</stddev>
+      </noise>
+    </camera>
+    <plugin name="rear_camera_controller" filename="libgazebo_ros_camera.so">
+      <ros>
+        <remapping>image_raw:=/rear_camera/image_raw</remapping>
+        <remapping>camera_info:=/rear_camera/camera_info</remapping>
+      </ros>
+      <frame_name>rear_camera_link_optical</frame_name>
+      <hack_baseline>0.07</hack_baseline>
+    </plugin>
+  </sensor>
+</gazebo>
+
+  <link name="rear_left_wheel">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <collision name="rear_left_wheel_collision">
+      <origin xyz="0 0 0" rpy="1.570796 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="-0.285 0.221 0.023" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  
+  <link name="rear_right_wheel">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <collision name="rear_right_wheel_collision">
+      <origin xyz="0 0 0" rpy="1.570796 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.285 -0.221 0.023" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="front_left_wheel_axle">
+    <inertial>
+      <mass value="1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+  
+  <joint name="front_left_wheel_axle_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="front_left_wheel_axle"/>
+    <origin xyz="0.257 0.221 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.8727" upper="0.8727" effort="10000000" velocity="1000000"/>
+  </joint>
+  
+  <link name="front_left_wheel">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <collision name="front_left_wheel_collision">
+      <origin xyz="0 0 0" rpy="1.570796 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="front_left_wheel_joint" type="continuous">
+    <parent link="front_left_wheel_axle"/>
+    <child link="front_left_wheel"/>
+    <origin xyz="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="front_right_wheel_axle">
+    <inertial>
+      <mass value="1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+  
+  <joint name="front_right_wheel_axle_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="front_right_wheel_axle"/>
+    <origin xyz="0.257 -0.221 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.8727" upper="0.8727" effort="10000000" velocity="1000000"/>
+  </joint>
+  
+  <link name="front_right_wheel">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <collision name="front_right_wheel_collision">
+      <origin xyz="0 0 0" rpy="1.570796 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+      <geometry>
+        <cylinder length="0.058" radius="0.098"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="front_right_wheel_joint" type="continuous">
+    <parent link="front_right_wheel_axle"/>
+    <child link="front_right_wheel"/>
+    <origin xyz="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <gazebo>
+    <plugin name="ackermann_drive" filename="libgazebo_ros_ackermann_drive.so">
+      <ros>
+        <namespace>/</namespace>
+        <remapping>cmd_vel:=cmd_vel</remapping>
+        <remapping>odom:=odom</remapping>
+        <remapping>distance:=distance</remapping>
+      </ros>
+      <update_rate>100.0</update_rate>
+      <front_left_joint>front_left_wheel_joint</front_left_joint>
+      <front_right_joint>front_right_wheel_joint</front_right_joint>
+      <rear_left_joint>rear_left_wheel_joint</rear_left_joint>
+      <rear_right_joint>rear_right_wheel_joint</rear_right_joint>
+      <left_steering_joint>front_left_wheel_axle_joint</left_steering_joint>
+      <right_steering_joint>front_right_wheel_axle_joint</right_steering_joint>
+      <left_steering_pid_gain>500 0 1</left_steering_pid_gain>
+      <left_steering_i_range>0 0</left_steering_i_range>
+      <right_steering_pid_gain>500 0 1</right_steering_pid_gain>
+      <right_steering_i_range>0 0</right_steering_i_range>
+      <linear_velocity_pid_gain>200 0 1</linear_velocity_pid_gain>
+      <linear_velocity_i_range>0 0</linear_velocity_i_range>
+      <max_steer>0.8727</max_steer>
+      <max_speed>3.0</max_speed>
+      <wheel_separation>0.442</wheel_separation>
+      <wheelbase>0.542</wheelbase>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>false</publish_wheel_tf>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="simulation_joint_state" filename="libgazebo_ros_joint_state_publisher.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <joint_name>rear_right_wheel_joint</joint_name>
+      <joint_name>rear_left_wheel_joint</joint_name>
+      <joint_name>front_right_wheel_joint</joint_name>
+      <joint_name>front_left_wheel_joint</joint_name>
+      <joint_name>front_right_wheel_axle_joint</joint_name>
+      <joint_name>front_left_wheel_axle_joint</joint_name>
+      
+      <update_rate>100.0</update_rate>
+      <always_on>true</always_on>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="p3d" filename="libgazebo_ros_p3d.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <body_name>base_link</body_name>
+      <topic_name>base_pose_ground_truth</topic_name>
+      <frame_name>map</frame_name>
+      <update_rate>100.0</update_rate>
+    </plugin>
+  </gazebo>
+
+</robot>
