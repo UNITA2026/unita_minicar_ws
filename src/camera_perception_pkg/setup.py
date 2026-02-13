@@ -26,6 +26,8 @@ setup(
             'lane_info_extractor_node = camera_perception_pkg.lane_info_extractor_node:main',
             'box_lidar_match_node = camera_perception_pkg.box_lidar_match_node:main',
             'image_fusion_node = camera_perception_pkg.image_fusion_node:main',
+            'parking_perception_node = camera_perception_pkg.parking_perception_node:main',
+            'bev_rear_node = camera_perception_pkg.bev_rear_node:main',
         ],
     },
 )
