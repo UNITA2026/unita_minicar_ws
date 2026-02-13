@@ -15,6 +15,7 @@ def generate_launch_description():
         ),
     )
 
+
     workspace_model_path = os.path.join(os.getcwd(), 'best_cone.pt')
     print(f"\n[Real-Car] Loading YOLO model from: {workspace_model_path}\n")
 
