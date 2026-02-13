@@ -16,11 +16,15 @@ PUB_TOPIC_NAME = "/yolov8_lane_info"
 ROI_IMAGE_TOPIC_NAME = "/roi_image"
 SHOW_IMAGE = True
 LANE_WIDTH_PIXEL = 280
-AVOIDANCE_TRIGGER_DIST = 2.4
+AVOIDANCE_TRIGGER_DIST = 1.8
 SHIFT_SPEED = 20.0
 IMAGE_CENTER_X = 320
 LANE_1_FAR_LEFT_THRESHOLD = 180
 LANE_2_FAR_RIGHT_THRESHOLD = 460
+
+# [추가] 차선 변경 인식을 위한 임계값 (노이즈 필터링)
+# 값이 클수록 안정적이지만 반응이 느려짐 (10~15 추천)
+LANE_CHANGE_THRESHOLD_COUNT = 15 
 #----------------------------------------------
 
 class Yolov8InfoExtractor(Node):
@@ -44,13 +48,17 @@ class Yolov8InfoExtractor(Node):
         self.obstacle_dist = 999.0
         self.obstacle_pixel_x = -1.0
 
-        self.get_logger().info("Method B: BBox Overlap Logic Ready.")
+        # [추가] 상태 변경 카운터 변수
+        self.lane_change_counter = 0
+        self.potential_next_state = None
+
+        self.get_logger().info("Method B: BBox Overlap Logic with Debouncing Ready.")
 
     def obstacle_callback(self, msg: Point32):
         if msg.z == 1.0:
             self.obstacle_detected = True
             self.obstacle_dist = msg.x
-            self.obstacle_pixel_x = msg.y # ★ 필수
+            self.obstacle_pixel_x = msg.y 
         else:
             self.obstacle_detected = False
             self.obstacle_dist = 999.0
@@ -68,28 +76,56 @@ class Yolov8InfoExtractor(Node):
         for d in detection_msg.detections:
             if d.class_name == 'lane_1':
                 lane_1_cx = d.bbox.center.position.x
-                lane_1_box = d # 박스 정보 저장
+                lane_1_box = d 
                 has_lane_1 = True
             elif d.class_name == 'lane_2':
                 lane_2_cx = d.bbox.center.position.x
-                lane_2_box = d # 박스 정보 저장
+                lane_2_box = d 
                 has_lane_2 = True
 
-        # 내 차선 판단
+        # ---------------------------------------------------
+        # [수정] 노이즈 필터링이 적용된 내 차선 판단 로직
+        # ---------------------------------------------------
+        
+        # 1. 이번 프레임에서 감지된 '임시' 상태 판단
+        detected_state = self.current_lane_state # 기본값은 유지
+
         if has_lane_1 and has_lane_2:
             dist_1 = abs(lane_1_cx - IMAGE_CENTER_X)
             dist_2 = abs(lane_2_cx - IMAGE_CENTER_X)
-            self.current_lane_state = 'lane_1' if dist_1 < dist_2 else 'lane_2'
+            detected_state = 'lane_1' if dist_1 < dist_2 else 'lane_2'
         elif has_lane_2 and not has_lane_1:
-            self.current_lane_state = 'lane_1' if lane_2_cx > LANE_2_FAR_RIGHT_THRESHOLD else 'lane_2'
+            detected_state = 'lane_1' if lane_2_cx > LANE_2_FAR_RIGHT_THRESHOLD else 'lane_2'
         elif has_lane_1 and not has_lane_2:
-            self.current_lane_state = 'lane_2' if lane_1_cx < LANE_1_FAR_LEFT_THRESHOLD else 'lane_1'
+            detected_state = 'lane_2' if lane_1_cx < LANE_1_FAR_LEFT_THRESHOLD else 'lane_1'
+
+        # 2. 상태 변경 카운팅 (Debouncing)
+        # 감지된 상태가 현재 확정된 상태와 다르면 카운트 증가
+        if detected_state != self.current_lane_state:
+            # 새로운 상태가 이전 프레임의 '잠재적 변경 상태'와 같으면 카운트 계속 증가
+            if detected_state == self.potential_next_state:
+                self.lane_change_counter += 1
+            else:
+                # 튀는 값이 바뀌었으면 카운터 리셋하고 새로운 잠재 상태로 등록
+                self.potential_next_state = detected_state
+                self.lane_change_counter = 1
+            
+            # 카운터가 임계치를 넘으면 비로소 상태 변경 승인
+            if self.lane_change_counter >= LANE_CHANGE_THRESHOLD_COUNT:
+                self.get_logger().info(f"🔄 Lane State Changed: {self.current_lane_state} -> {detected_state}")
+                self.current_lane_state = detected_state
+                self.lane_change_counter = 0 # 리셋
+        else:
+            # 감지된 상태가 현재 상태와 같으면 카운터 초기화 (노이즈였다는 뜻)
+            self.lane_change_counter = 0
+            self.potential_next_state = None
 
         # ---------------------------------------------------
         # 2. [방식 B] BBox Overlap Check (겹침 확인)
         # ---------------------------------------------------
         self.target_offset = 0.0
-        tracking_class = self.current_lane_state
+        # ★ 중요: tracking_class는 필터링된 self.current_lane_state를 따라감
+        tracking_class = self.current_lane_state 
 
         # 장애물이 어디 있는지 동적으로 판단
         obstacle_in_lane_1 = False
@@ -115,7 +151,7 @@ class Yolov8InfoExtractor(Node):
                 if self.obstacle_pixel_x < 320: obstacle_in_lane_1 = True
                 else: obstacle_in_lane_2 = True
 
-        # 전략 수립
+        # 전략 수립 (이제 self.current_lane_state가 안정적이므로 튀지 않음)
         if self.obstacle_detected and self.obstacle_dist < AVOIDANCE_TRIGGER_DIST:
             if self.current_lane_state == 'lane_2':
                 # 내가 2차선인데 2차선에 장애물이 '확실히' 있다 -> 피함
@@ -123,7 +159,6 @@ class Yolov8InfoExtractor(Node):
                     self.target_offset = -LANE_WIDTH_PIXEL
                     self.get_logger().warn(f"🚧 Obs Inside Lane 2 Box -> Dodge LEFT")
                 else:
-                    # 1차선에만 있거나 어디에도 안 겹침 -> 직진
                     self.target_offset = 0.0
 
             elif self.current_lane_state == 'lane_1':
@@ -153,6 +188,7 @@ class Yolov8InfoExtractor(Node):
         try:
             edge_image = CPFL.draw_edges(detection_msg, cls_name=final_tracking_class, color=255)
             (h, w) = (edge_image.shape[0], edge_image.shape[1])
+            # [사용자 설정값 적용됨]
             dst_mat = [[round(w * 0.2), round(h * 0.0)], [round(w * 0.8), round(h * 0.0)], [round(w * 0.8), h], [round(w * 0.2), h]]
             src_mat = [[154, 298], [486, 298], [614, 470], [26, 470]]
 
@@ -162,7 +198,9 @@ class Yolov8InfoExtractor(Node):
 
             if self.show_image:
                 debug_img = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
-                cv2.putText(debug_img, f"State: {self.current_lane_state}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                # 디버깅 정보 추가 (카운터 표시)
+                cv2.putText(debug_img, f"State: {self.current_lane_state} (cnt:{self.lane_change_counter})", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                
                 if self.obstacle_detected:
                      obs_info = "L1" if obstacle_in_lane_1 else ("L2" if obstacle_in_lane_2 else "None")
                      color = (0,0,255) if (self.current_lane_state=='lane_1' and obstacle_in_lane_1) or (self.current_lane_state=='lane_2' and obstacle_in_lane_2) else (200,200,200)
