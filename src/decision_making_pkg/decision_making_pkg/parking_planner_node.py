@@ -84,6 +84,9 @@ class ParkingPlannerNode(Node):
         self.lane_error_px = 0.0           
         self.is_stop_line_detected = False 
         
+        # ✅ [추가] 정지선 통과 체크용 플래그
+        self.stop_line_seen = False
+        
         self.create_subscription(LaserScan, SUB_LIDAR_TOPIC, self.cb_lidar, self.qos_sensor)
         self.create_subscription(Bool, SUB_CONE_DET_TOPIC, self.cb_cone, 10)
         self.create_subscription(Float32, SUB_CONE_MID_TOPIC, self.cb_cone_mid, 10)
@@ -95,7 +98,7 @@ class ParkingPlannerNode(Node):
         self.pub_state = self.create_publisher(String, PUB_STATE_TOPIC, 10)
         self.timer = self.create_timer(0.05, self.control_loop)
         
-        self.get_logger().info("Parking Planner: Center Align Stop & Blind Reverse Mode.")
+        self.get_logger().info("Parking Planner: Stop Line Appear->Disappear Logic.")
 
     def get_time_sec(self):
         return self.get_clock().now().nanoseconds / 1e9
@@ -172,11 +175,11 @@ class ParkingPlannerNode(Node):
                 self.get_logger().info("Reverse Entry Start!")
                 self.state = self.S_REVERSE_ENTRY
 
-        # [5] 후진 진입 (우측 최대 고정)
+        # [5] 후진 진입 (요청대로 핸들 0 유지)
         elif self.state == self.S_REVERSE_ENTRY:
             speed_cmd = -REVERSE_PWM 
             
-            # ✅ [수정 3] 핸들은 무조건 우측 최대 고정
+            # ✅ [사용자 요청] 핸들 0 고정 (수정 금지)
             steer_cmd = 0
             state_str = "ENTRY_RIGHT_MAX"
             
@@ -197,8 +200,9 @@ class ParkingPlannerNode(Node):
             if elapsed > 1.5:
                 self.get_logger().info("Locked! Going Blind Straight.")
                 self.state = self.S_REVERSE_STRAIGHT
+                self.stop_line_seen = False # [중요] 6단계 진입 시 플래그 초기화
 
-        # [6] 직진 후진 (Absolute Lock)
+        # [6] 직진 후진 (Absolute Lock + Stop Line Pass Logic)
         elif self.state == self.S_REVERSE_STRAIGHT:
             state_str = "REVERSE_STRAIGHT"
             speed_cmd = -REVERSE_PWM
@@ -206,8 +210,17 @@ class ParkingPlannerNode(Node):
             # ✅ [수정 4] 무조건 핸들 0 고정 (추종 X)
             steer_cmd = STEER_CENTER  
             
-            if self.is_stop_line_detected: 
-                self.get_logger().warn(">>> Stop Line Detected! FINISH <<<")
+            # ✅ [수정 요청] 주차선이 보였다가(Seen) -> 사라지면(Disappeared) 정지
+            
+            # 1. 선이 보이면 '본 적 있음'으로 체크
+            if self.is_stop_line_detected:
+                if not self.stop_line_seen:
+                    self.get_logger().info("Stop Line Detected! Keep Reversing...")
+                self.stop_line_seen = True
+            
+            # 2. 본 적 있는데 + 지금 안 보이면 -> 지나쳤음 -> 정지
+            if self.stop_line_seen and not self.is_stop_line_detected: 
+                self.get_logger().warn(">>> Stop Line Passed! FINISH <<<")
                 self.state = self.S_FINISH
 
         # [7] 완료
